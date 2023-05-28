@@ -3,6 +3,8 @@ from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, InlineKeyboardMar
 import textwrap
 import string
 import random
+from telegram import error
+from timetable.models import Event
 
 YOGURT_PIC = 'https://sun9-12.userapi.com/impg/fEQSeBvO45TUdnhRItU0IUPaiphVOjtqfSgCTg/M-lCbu0B5BA.jpg?size=960x1280&quality=96&sign=664e83d8ba3957f55ddb95c7c1e676b4&type=album'
 REPLICAS = [
@@ -181,6 +183,16 @@ def send_remember_password_success(update, context, password):
 def feed_shkontik(update, context):
 
     query = update.callback_query
-    context.bot.delete_message(message_id=context.user_data['message_for_delete'], chat_id=query.message.chat_id)
-    context.bot.delete_message(message_id=query.message.message_id, chat_id=query.message.chat_id)
-    context.bot.send_photo(photo=YOGURT_PIC, chat_id=query.message.chat_id)
+    try:
+        if context.user_data.get('message_for_delete'):
+            context.bot.delete_message(message_id=context.user_data['message_for_delete'], chat_id=query.message.chat_id)
+            context.user_data['message_for_delete'] = None
+
+        if context.user_data.get('event_to_delete'):
+            context.user_data['event_to_delete'].delete()
+
+        context.bot.delete_message(message_id=query.message.message_id, chat_id=query.message.chat_id)
+    except error.BadRequest:
+        pass
+    finally:
+        context.bot.send_photo(photo=YOGURT_PIC, chat_id=query.message.chat_id)
