@@ -240,7 +240,7 @@ def handle_timetable_show_events(update, context):
     message = update.message
     date = datetime.strptime(message.text, "%d.%m.%Y")
 
-    events = Event.objects.filter(at__year=date.year, at__month=date.month, at__day=date.day).order_by('-hour')
+    events = Event.objects.filter(at__year=date.year, at__month=date.month, at__day=date.day).order_by('-at__hour')
 
     for event in events:
         text = textwrap.dedent(
