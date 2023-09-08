@@ -1,10 +1,9 @@
-from telegram.ext import CommandHandler, ConversationHandler, Filters, MessageHandler, Updater
-from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram import ReplyKeyboardRemove, InlineKeyboardMarkup, InlineKeyboardButton
+from passwords.models import Password
 import textwrap
 import string
 import random
 from telegram import error
-from timetable.models import Event
 
 YOGURT_PIC = 'https://sun9-12.userapi.com/impg/fEQSeBvO45TUdnhRItU0IUPaiphVOjtqfSgCTg/M-lCbu0B5BA.jpg?size=960x1280&quality=96&sign=664e83d8ba3957f55ddb95c7c1e676b4&type=album'
 REPLICAS = [
@@ -35,11 +34,81 @@ def send_password_menu(update, context):
 
     keyboard = [
         [InlineKeyboardButton('Я хочу создать новый пароль', callback_data='password#new')],
-        [InlineKeyboardButton('Помоги вспомнить пароль', callback_data='password#old_choice')]
+        [InlineKeyboardButton('Помоги вспомнить пароль', callback_data='password#old_choice')],
+        [InlineKeyboardButton('Отправь мне все пароли', callback_data='password#all#0')]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     update.message.reply_text(text=text, reply_markup=reply_markup, parse_mode='Markdown')
+
+
+def send_all_passwords(update, context):
+
+    query = update.callback_query
+    page = int(query.data.split('#')[-1])
+    all_passwords = Password.objects.filter(user_id=query.message.chat_id).order_by('site_alias')
+
+    if all_passwords:
+
+        text = textwrap.dedent(
+            """
+            Отправь ПОЖАЛУЙСТА, правда? Лана, лови хих
+            """
+        )
+
+        keyboard = [
+            [InlineKeyboardButton(f'{password.site_alias} - {password.site}', callback_data=f'password#get#{password.id}')] for password in all_passwords[page:page+5]
+        ]
+
+        if page == 0 and len(all_passwords) > 5:
+            keyboard.append(
+                [InlineKeyboardButton(f'Отправь дальше ->', callback_data=f'password#all#{page+1}')]
+            )
+        elif len(all_passwords) <= 5:
+            pass
+        elif len(all_passwords) / 5 < page:
+            keyboard.append(
+                [InlineKeyboardButton(f'<- Отправь раньше', callback_data=f'password#all#{page-1}')]
+            )
+        else:
+            keyboard.extend(
+                [
+                    [InlineKeyboardButton(f'<- Отправь раньше', callback_data=f'password#get#{page - 1}')],
+                    [InlineKeyboardButton(f'Отправь дальше ->', callback_data=f'password#all#{page + 1}')],
+                ]
+            )
+
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        context.bot.edit_message_text(text=text, message_id=query.message.message_id, chat_id=query.message.chat_id, reply_markup=reply_markup)
+
+    else:
+
+        text = textwrap.dedent(
+            """
+            Прости брад, но их нету........
+            """
+        )
+        context.bot.edit_message_text(text=text, message_id=query.message.message_id, chat_id=query.message.chat_id)
+
+
+def send_password_by_id(update, context):
+
+    query = update.callback_query
+    password_id = query.data.split('#')[-1]
+
+    password = Password.objects.get(id=password_id)
+
+    text = 'Хехе, ну лана смотри!!! И забудь меня покормить гречевским йогуртом!'
+
+    keyboard = [
+        [InlineKeyboardButton('Покормить греческим йогуртом', callback_data='feed')]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    context.bot.edit_message_text(text=text, message_id=query.message.message_id, chat_id=query.message.chat_id)
+
+    message = context.bot.send_message(text=password.password, chat_id=query.message.chat_id, reply_markup=reply_markup)
+    context.user_data['message_for_delete'] = message['message_id']
 
 
 def send_create_password_send_site(update, context):
@@ -100,10 +169,15 @@ def send_create_password_good_password(update, context):
 
 def send_create_password_regenerate_password(update, context):
 
+    query = update.callback_query
+
     password = generate_password()
     context.user_data['create_password']['password'] = password
 
     text = random.choice(REPLICAS)
+    while text == context.user_data.get('prev_generate_replica'):
+        text = random.choice(REPLICAS)
+    context.user_data['prev_generate_replica'] = text
 
     keyboard = [
         [InlineKeyboardButton('Мне нравится этот пароль', callback_data='good_password')],
@@ -111,7 +185,6 @@ def send_create_password_regenerate_password(update, context):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    query = update.callback_query
     context.bot.edit_message_text(text=text, reply_markup=reply_markup, message_id=query.message.message_id, chat_id=query.message.chat_id)
     context.bot.edit_message_text(text=password, message_id=context.user_data['regenerate_password_message'], chat_id=query.message.chat_id)
 

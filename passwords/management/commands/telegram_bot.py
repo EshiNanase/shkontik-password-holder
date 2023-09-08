@@ -1,7 +1,7 @@
 import textwrap
 from passwords.models import Password
-from structured_functions.passwords import send_password_menu, send_create_password_send_site, send_create_password_send_site_alias, send_create_password_generate_password, send_create_password_regenerate_password, send_remember_password_by_site_alias, send_remember_password_by_site, send_remember_password_by_choice, send_remember_password_success, send_remember_password_error, feed_shkontik, send_create_password_good_password
-from structured_functions.timetable_functions import send_timetable_menu, send_timetable_good_date, send_timetable_bad_date
+from services.passwords import send_password_menu, send_create_password_send_site, send_create_password_send_site_alias, send_create_password_generate_password, send_create_password_regenerate_password, send_remember_password_by_site_alias, send_remember_password_by_site, send_remember_password_by_choice, send_remember_password_success, send_remember_password_error, feed_shkontik, send_create_password_good_password, send_all_passwords, send_password_by_id
+from services.timetable_functions import send_timetable_menu, send_timetable_good_date, send_timetable_bad_date
 from django.core.management.base import BaseCommand
 from telegram.ext import CommandHandler, ConversationHandler, Filters, MessageHandler, Updater, CallbackQueryHandler
 from telegram import ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton
@@ -34,6 +34,9 @@ class States(Enum):
     # REMEMBER_PASSWORD
     Password_Remember_Site = auto()
     Password_Remember_Site_Alias = auto()
+
+    # GET ALL PASSWORDS
+    Password_Get_All = auto()
 
     Timetable = auto()
 
@@ -118,6 +121,10 @@ def handle_passwords_menu(update, context):
             send_remember_password_by_site_alias(update, context)
             return States.Password_Remember_Site_Alias
 
+    elif 'password#all' in query.data:
+        send_all_passwords(update, context)
+        return States.Password_Get_All
+
 
 def handle_passwords_send_site(update, context):
 
@@ -150,6 +157,19 @@ def handle_passwords_send_site_alias(update, context):
     context.user_data['create_password']['site_alias'] = message
     send_create_password_generate_password(update, context)
     return States.Password_Create_Generate_Password
+
+
+def handle_all_passwords(update, context):
+
+    query = update.callback_query
+
+    if 'password#all' in query.data:
+        send_all_passwords(update, context)
+        return States.Password_Get_All
+
+    elif 'password#get' in query.data:
+        send_password_by_id(update, context)
+        return States.Password_Remember_Site_Alias
 
 
 def handle_passwords_generate_password(update, context):
@@ -240,7 +260,7 @@ def handle_timetable_show_events(update, context):
     message = update.message
     date = datetime.strptime(message.text, "%d.%m.%Y")
 
-    events = Event.objects.filter(at__year=date.year, at__month=date.month, at__day=date.day).order_by('-at__hour')
+    events = Event.objects.filter(at__year=date.year, at__month=date.month, at__day=date.day, user_id=update.message.chat_id).order_by('-at__hour')
 
     for event in events:
         text = textwrap.dedent(
@@ -388,6 +408,11 @@ class Command(BaseCommand):
                     menu_message_handler,
                     menu_callback_handler,
                     MessageHandler(Filters.text, handle_remember_password_by_site_alias)
+                ],
+                States.Password_Get_All: [
+                    menu_message_handler,
+                    menu_callback_handler,
+                    CallbackQueryHandler(handle_all_passwords)
                 ],
                 States.Timetable: [
                     menu_message_handler,
