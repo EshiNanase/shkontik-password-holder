@@ -1,4 +1,4 @@
-from telegram import ReplyKeyboardRemove, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram import InlineKeyboardMarkup, InlineKeyboardButton
 from passwords.models import Password
 import textwrap
 import string

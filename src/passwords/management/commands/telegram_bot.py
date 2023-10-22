@@ -2,6 +2,7 @@ import textwrap
 from passwords.models import Password
 from services.passwords import send_password_menu, send_create_password_send_site, send_create_password_send_site_alias, send_create_password_generate_password, send_create_password_regenerate_password, send_remember_password_by_site_alias, send_remember_password_by_site, send_remember_password_by_choice, send_remember_password_success, send_remember_password_error, feed_shkontik, send_create_password_good_password, send_all_passwords, send_password_by_id
 from services.timetable_functions import send_timetable_menu, send_timetable_good_date, send_timetable_bad_date
+from services.berserk import send_berserk_menu, send_berserk_add_card_choose_set, send_berserk_add_card_add_first_card, send_berserk_add_card_loop, send_berserk_add_card_foil
 from django.core.management.base import BaseCommand
 from telegram.ext import CommandHandler, ConversationHandler, Filters, MessageHandler, Updater, CallbackQueryHandler
 from telegram import ReplyKeyboardMarkup, InlineKeyboardMarkup, InlineKeyboardButton
@@ -18,6 +19,23 @@ from timetable.models import Event
 
 logger = logging.getLogger(__file__)
 validator = URLValidator()
+
+
+def send_menu(update, context):
+    text = textwrap.dedent(
+        """
+        Привет, меня зовут *Шконтик*, и я здесь главный!!!
+        """
+    )
+
+    keyboard = [
+        ['🔧 Пароли'],
+        ['📅 Расписание'],
+        ['⚔ Берсерк']
+    ]
+    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+    update.message.reply_text(text=text, reply_markup=reply_markup, parse_mode='Markdown')
 
 
 @unique
@@ -48,23 +66,15 @@ class States(Enum):
 
     Timetable_Show_Events = auto()
 
+    Berserk = auto()
+    Berserk_Add_Card_Choose_Set = auto()
+    Berserk_Add_Card_Foil = auto()
+    Berserk_Add_Card_Send_Card_ID = auto()
+    Berserk_Add_Card_Send_Card_ID_Loop = auto()
+
 
 def start(update, context):
-
-    text = textwrap.dedent(
-        """
-        Привет, меня зовут *Шконтик*, и я здесь главный!!!
-        """
-    )
-
-    keyboard = [
-        ['🔧 Пароли'],
-        ['📅 Расписание']
-    ]
-    reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
-
-    update.message.reply_text(text=text, reply_markup=reply_markup, parse_mode='Markdown')
-
+    send_menu(update, context)
     return States.Menu
 
 
@@ -82,6 +92,10 @@ def handle_menu(update, context):
         elif '📅 Расписание' == message.text:
             send_timetable_menu(update, context)
             return States.Timetable
+
+        elif '⚔ Берсерк' == message.text:
+            send_berserk_menu(update, context)
+            return States.Berserk
 
     elif hasattr(query, 'data'):
 
@@ -356,6 +370,36 @@ def handle_timetable_event_creation_confirmation(update, context):
         return States.Timetable_Create_Event
 
 
+def handle_berserk(update, context):
+    if 'berserk#add_card' in update.callback_query.data:
+        send_berserk_add_card_choose_set(update, context)
+        return States.Berserk_Add_Card_Choose_Set
+
+
+def handle_berserk_add_card_choose_set(update, context):
+    send_berserk_add_card_foil(update, context)
+    return States.Berserk_Add_Card_Foil
+
+
+def handle_berserk_add_card_add_foil(update, context):
+    send_berserk_add_card_add_first_card(update, context)
+    return States.Berserk_Add_Card_Send_Card_ID
+
+
+def handle_berserk_add_card_add_first_card(update, context):
+    send_berserk_add_card_loop(update, context)
+    return States.Berserk_Add_Card_Send_Card_ID_Loop
+
+
+def handle_berserk_add_card_loop(update, context):
+    if 'хватит' in update.message.text.lower():
+        send_menu(update, context)
+        return States.Menu
+    else:
+        send_berserk_add_card_loop(update, context)
+    return States.Berserk_Add_Card_Send_Card_ID_Loop
+
+
 class Command(BaseCommand):
     help = 'Телеграм-бот, снимающий омографию'
 
@@ -369,7 +413,7 @@ class Command(BaseCommand):
         updater = Updater(telegram_token)
         dispatcher = updater.dispatcher
 
-        menu_message_handler = MessageHandler(Filters.regex('🔧 Пароли|📅 Расписание'), handle_menu)
+        menu_message_handler = MessageHandler(Filters.regex('🔧 Пароли|📅 Расписание|⚔ Берсерк'), handle_menu)
         menu_callback_handler = CallbackQueryHandler(handle_menu, pattern='feed|timetable*')
 
         conv_handler = ConversationHandler(
@@ -439,11 +483,31 @@ class Command(BaseCommand):
                     menu_callback_handler,
                     CallbackQueryHandler(handle_timetable_event_creation_confirmation)
                 ],
-                States.Timetable_Show_Events: [
+                States.Berserk: [
                     menu_message_handler,
                     menu_callback_handler,
-                    MessageHandler(Filters.text, handle_timetable_show_events)
-                ]
+                    CallbackQueryHandler(handle_berserk)
+                ],
+                States.Berserk_Add_Card_Choose_Set: [
+                    menu_message_handler,
+                    menu_callback_handler,
+                    CallbackQueryHandler(handle_berserk_add_card_choose_set)
+                ],
+                States.Berserk_Add_Card_Foil: [
+                    menu_message_handler,
+                    menu_callback_handler,
+                    MessageHandler(Filters.text, handle_berserk_add_card_add_foil)
+                ],
+                States.Berserk_Add_Card_Send_Card_ID: [
+                    menu_message_handler,
+                    menu_callback_handler,
+                    MessageHandler(Filters.text, handle_berserk_add_card_add_first_card)
+                ],
+                States.Berserk_Add_Card_Send_Card_ID_Loop: [
+                    menu_message_handler,
+                    menu_callback_handler,
+                    MessageHandler(Filters.text, handle_berserk_add_card_loop)
+                ],
             },
             fallbacks=[],
             allow_reentry=True,
