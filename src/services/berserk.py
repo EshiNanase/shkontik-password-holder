@@ -96,7 +96,7 @@ def send_berserk_add_card_add_first_card(update, context):
     update.message.reply_text(text=text)
 
 
-# TODO: не добавлять карту в таблицу, а добавлять в словарь и потом его отдавать целиком 
+# TODO: не добавлять карту в таблицу, а добавлять в словарь и потом его отдавать целиком
 def send_berserk_add_card_loop(update, context):
 
     success, message = berserk_add_card(update.message.chat_id, context.user_data['berserk_add_worksheet_index'], update.message.text, context.user_data['foil'])
