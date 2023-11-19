@@ -27,21 +27,5 @@ services:
     volumes:
       - ./src:/code/src/
 
-  db:
-    image: postgres:14-alpine
-    restart: always
-    volumes:
-      - postgres:/var/lib/postgresql/data
-    restart: always
-    environment:
-      PGDATA: "/var/lib/postgresql/data"
-      POSTGRES_USER: "postgres"
-      POSTGRES_PASSWORD: "postgres"
-      POSTGRES_DB: "postgres"
-      POSTGRES_HOST_AUTH_METHOD: "trust"
-    ports:
-      - "5432:5432"
-
 volumes:
-  postgres:
-  media:
+  postgres_volume:
