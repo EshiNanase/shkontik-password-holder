@@ -99,12 +99,15 @@ def send_berserk_add_card_add_first_card(update, context):
 # TODO: не добавлять карту в таблицу, а добавлять в словарь и потом его отдавать целиком
 def send_berserk_add_card_loop(update, context):
 
-    success, message = berserk_add_card(update.message.chat_id, context.user_data['berserk_add_worksheet_index'], update.message.text, context.user_data['foil'])
-    if success:
-        info = f'Ты добавил {"фойл " if context.user_data["foil"] else ""}{message["name"]} - {message["quantity"]}\nОтправляй дальше или напиши "хватит" :)'
-        update.message.reply_text(text=info, parse_mode='Markdown')
-    else:
-        update.message.reply_text(text=message)
+    try:
+        success, message = berserk_add_card(update.message.chat_id, context.user_data['berserk_add_worksheet_index'], update.message.text, context.user_data['foil'])
+        if success:
+            info = f'Ты добавил {"фойл " if context.user_data["foil"] else ""}{message["name"]} - {message["quantity"]}\nОтправляй дальше или напиши "хватит" :)'
+            update.message.reply_text(text=info, parse_mode='Markdown')
+        else:
+            update.message.reply_text(text=message)
+    except gc.exceptions.APIError:
+        update.message.reply_text(text='Впали в загрузку. Приходи попозже(')
 
 
 def send_berserk_change_table_change_table(update, context):
