@@ -1,0 +1,27 @@
+name: Shkontik (CI/CD)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+
+  deployment:
+    runs-on: [self-hosted, sa]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v2
+      - name: Create env files
+        run: echo "${{ secrets.ENV_FILE }}" > .env &&
+      - name: Stop and remove containers, networks, volumes
+        if: ${{ vars.DELETE_ALL_VOLUMES_ON_PUSH == 'true' }}
+        run: docker-compose down -v
+      - name: Stop and remove containers, networks
+        if: ${{ vars.DELETE_ALL_VOLUMES_ON_PUSH == 'false' }}
+        run: docker-compose down
+      - name: Remove docker cache
+        run: docker system prune --all --volumes --force
+      - name: Rebuild everything and run
+        run: docker-compose up --build --remove-orphans -d
