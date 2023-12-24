@@ -9,7 +9,7 @@ GC = gc.service_account(filename='cred.json')
 def berserk_add_card(user_id, worksheet_index, card_index, foil):
     table_link_obj = TableLink.objects.filter(user_id=user_id).first()
     table = GC.open_by_url(table_link_obj.link)
-    sheets = table.worksheets()[2:]
+    sheets = table.worksheets()[1:]
     worksheet = sheets[int(worksheet_index)]
 
     records = worksheet.get_all_records()
@@ -61,7 +61,7 @@ def send_berserk_add_card_choose_set(update, context):
     )
     table_link_obj = TableLink.objects.filter(user_id=query.message.chat_id).first()
     table = GC.open_by_url(table_link_obj.link)
-    sheets = table.worksheets()[2:]
+    sheets = table.worksheets()[1:]
 
     keyboard = [[InlineKeyboardButton(f'{sheet.title}', callback_data=f'#berserk#add_card#{ind}')] for ind, sheet in enumerate(sheets)]
     reply_markup = InlineKeyboardMarkup(keyboard)
